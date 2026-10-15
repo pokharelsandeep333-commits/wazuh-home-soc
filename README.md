@@ -90,11 +90,12 @@ I ran an attack chain against my own DNS server: 10 failed SSH logins as a fake 
 | 14:19:33 | 40112 | 12 | Failed logins followed by a success from the same IP |
 | 14:20:03 | 40501 | **15** | Attack followed by a new user being added |
 
-<p align="center"><img src="docs/evidence/threat-hunting-bruteforce-chain.png" alt="Wazuh Threat Hunting: the brute-force chain 5712, 40112, 40501 on the web server, 4 alerts, 3 at level 12 or above" width="90%"></p>
+<p align="center"><img src="docs/evidence/threat-hunting-bruteforce-events.png" alt="Wazuh Threat Hunting events: 9 alerts on Oct 9, rules 5712, 40112 and 40501 on both servers, levels 10, 12 and 15" width="95%">
+<br><sub>The chain on both servers, Oct 9 2026 (times in US Central). Server names blurred.</sub></p>
 
 Other live tests:
 - **Secrets probes:** none of my five hostnames served `/.env` or `/.git/config`. Cloudflare's edge already blocked `/.env` on the proxied sites.
-- **AWS root login:** rule 100200 (level 12) about 7 minutes later.
+- **AWS root login:** rule 100200 (level 12) about 7 minutes later ([screenshot](docs/evidence/README.md#aws-root-console-login-caught-oct-10-2026)).
 - **File integrity:** create, edit and delete each alerted within about 1 second on all three machines.
 - **Discord:** six probes produced 100210 five times, then 100212, and the message arrived in the channel.
 
