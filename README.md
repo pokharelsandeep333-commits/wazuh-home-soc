@@ -88,6 +88,8 @@ I ran an attack chain against my own DNS server: 10 failed SSH logins as a fake 
 | 14:19:33 | 40112 | 12 | Failed logins followed by a success from the same IP |
 | 14:20:03 | 40501 | **15** | Attack followed by a new user being added |
 
+<p align="center"><img src="docs/evidence/threat-hunting-bruteforce-chain.png" alt="Wazuh Threat Hunting: the brute-force chain 5712, 40112, 40501 on the web server, 4 alerts, 3 at level 12 or above" width="90%"></p>
+
 Other live tests:
 - **Secrets probes:** none of my five hostnames served `/.env` or `/.git/config`. Cloudflare's edge already blocked `/.env` on the proxied sites.
 - **AWS root login:** rule 100200 (level 12) about 7 minutes later.
@@ -100,6 +102,12 @@ Other live tests:
 |---|:---:|:---:|
 | Ubuntu 24.04 web server | 53% | **65%** |
 | Windows 11 homelab box | 25% | **45%** |
+
+<p align="center">
+  <img src="docs/evidence/cis-webserver-before-53.png" alt="CIS Ubuntu 24.04 score before hardening: 53%, 127 passed, 110 failed" width="49%">
+  <img src="docs/evidence/cis-webserver-after-65.png" alt="CIS Ubuntu 24.04 score after hardening: 65%, 172 passed, 90 failed" width="49%">
+  <br><sub>Web server, Oct 9 2026: 53% at 13:03, 65% at 13:37 after two hardening batches</sub>
+</p>
 
 Every check I skipped has a written reason and a compensating control, in an [exception register](docs/04-detections.md#cis-hardening). I also found a bug in Wazuh's own CIS policy (a check that can never pass because its file pattern is missing an `r:` prefix) and reported it as [wazuh/wazuh#40275](https://github.com/wazuh/wazuh/issues/40275).
 
@@ -192,7 +200,7 @@ I designed it, made the security decisions, ran the attack tests, and ran everyt
 
 - Bug report to Wazuh: [wazuh/wazuh#40275](https://github.com/wazuh/wazuh/issues/40275)
 - Rule tests: the [CI runs](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml) on this repo
-- Screenshots and a walkthrough video: coming soon in [docs/evidence/](docs/evidence/)
+- Screenshots: [docs/evidence/](docs/evidence/) (more coming, plus a walkthrough video)
 - I'm happy to demo it live.
 
 ---
