@@ -1,0 +1,11 @@
+# 5 minutes after boot, then every 5 minutes. Check with: systemctl list-timers wazuh-watcher.timer
+[Unit]
+Description=Run the Wazuh watcher every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Unit=wazuh-watcher.service
+
+[Install]
+WantedBy=timers.target

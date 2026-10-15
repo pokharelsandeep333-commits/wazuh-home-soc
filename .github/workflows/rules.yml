@@ -1,0 +1,80 @@
+# Loads the custom rules into a clean Wazuh 4.14.8 manager, validates the whole ruleset with
+# wazuh-analysisd -t, then replays wazuh/tests/cases.json through wazuh-logtest.
+# Also lints the shell scripts. No secrets are used.
+name: Rule tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wazuh-rules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      M: wazuh-test
+      IMAGE: wazuh/wazuh-manager:4.14.8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Start a standalone Wazuh manager
+        run: docker run -d --name "$M" "$IMAGE"
+
+      - name: Wait for analysisd and the logtest socket
+        run: |
+          for i in $(seq 1 60); do
+            if docker exec "$M" test -S /var/ossec/queue/sockets/logtest 2>/dev/null &&
+               docker exec "$M" /var/ossec/bin/wazuh-control status 2>/dev/null | grep -q 'wazuh-analysisd is running'; then
+              echo "ready after ~$((i * 5)) s"; exit 0
+            fi
+            sleep 5
+          done
+          docker logs --tail 80 "$M"; exit 1
+
+      - name: Copy the custom rules in and validate the ruleset
+        run: |
+          for f in wazuh/rules/*.xml; do
+            docker cp "$f" "$M:/var/ossec/etc/rules/"
+            n=$(basename "$f")
+            docker exec "$M" chown wazuh:wazuh "/var/ossec/etc/rules/$n"
+            docker exec "$M" chmod 660 "/var/ossec/etc/rules/$n"
+          done
+          docker exec "$M" /var/ossec/bin/wazuh-analysisd -t
+
+      - name: Restart the manager so the rules load
+        run: |
+          docker restart "$M"
+          sleep 10
+          for i in $(seq 1 60); do
+            if docker exec "$M" test -S /var/ossec/queue/sockets/logtest 2>/dev/null &&
+               docker exec "$M" /var/ossec/bin/wazuh-control status 2>/dev/null | grep -q 'wazuh-analysisd is running'; then
+              echo "ready after ~$((i * 5)) s"; exit 0
+            fi
+            sleep 5
+          done
+          docker logs --tail 80 "$M"; exit 1
+
+      - name: Replay the test events
+        run: |
+          docker cp wazuh/tests/. "$M:/tmp/home-soc-tests/"
+          docker exec "$M" /var/ossec/framework/python/bin/python3 /tmp/home-soc-tests/run_logtest.py
+
+      - name: Manager log on failure
+        if: failure()
+        run: docker exec "$M" tail -n 60 /var/ossec/logs/ossec.log || true
+
+  shellcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck (errors only)
+        run: shellcheck --severity=error scripts/server/*.sh scripts/manager/*.sh

@@ -1,0 +1,15 @@
+<!--
+  Real-time file integrity monitoring (docs/04-detections.md, "File integrity").
+  Insert inside the existing <syscheck> block of /var/ossec/etc/ossec.conf on each agent, then:
+    sudo /var/ossec/bin/wazuh-syscheckd -t && sudo systemctl restart wazuh-agent
+    sudo grep "Real-time file integrity monitoring started" /var/ossec/logs/ossec.log
+
+  No report_changes: these folders hold .env secrets, and diffs would copy them into the SIEM.
+  Pick folders that are quiet (check: zero changes in 24 h), or every normal write becomes an alert.
+-->
+
+<!-- Web server example: the app folder and SSH config -->
+<directories realtime="yes">/home/ubuntu/<APP_DIR>,/etc/ssh</directories>
+
+<!-- DNS server example: nginx, AdGuard Home config and SSH config -->
+<directories realtime="yes">/etc/nginx,/opt/adguardhome/conf,/etc/ssh</directories>

@@ -1,0 +1,15 @@
+# Template unit for scripts/manager/wazuh-watcher.sh (docs/07-watcher-and-migration.md).
+# Install (as root):
+#   cp wazuh-watcher.service wazuh-watcher.timer /etc/systemd/system/
+#   edit User= and ExecStart= below, then:
+#   systemctl daemon-reload && systemctl enable --now wazuh-watcher.timer
+[Unit]
+Description=Wazuh stack health check (watcher)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=<LINUX_USER>
+ExecStart=/home/<LINUX_USER>/wazuh/watcher/wazuh-watcher.sh
+TimeoutStartSec=240

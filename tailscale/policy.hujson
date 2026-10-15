@@ -1,0 +1,71 @@
+// Tailscale access policy for the home SOC (docs/01-tailscale.md).
+// Paste into admin console -> Access controls -> JSON editor, BEFORE adding any server.
+// Replace <WAZUH_MANAGER_IP> (tailscale ip -4 on the Wazuh host) and <YOUR_TAILSCALE_LOGIN>.
+// Anything not granted is denied. Tailscale refuses to save the policy if a test fails.
+{
+	// Only an admin can label a machine as a server. A random device can't tag itself to gain access.
+	"tagOwners": {
+		"tag:server": ["autogroup:admin"],
+	},
+
+	// Readable name for the Wazuh host, used in grants and tests.
+	"hosts": {
+		"wazuh-host": "<WAZUH_MANAGER_IP>",
+	},
+
+	"grants": [
+		// Your own (untagged) devices can reach everything, including the servers.
+		// Note: autogroup:member also covers anyone you invite to the tailnet later. Review this before inviting.
+		{
+			"src": ["autogroup:member"],
+			"dst": ["*"],
+			"ip":  ["*"],
+		},
+		// Tagged servers can reach ONLY the Wazuh host, ONLY on TCP 1514 (agent events).
+		// No enrollment port (1515), no SSH/SMB/RDP/dashboard on the Wazuh host, and nothing between servers.
+		{
+			"src": ["tag:server"],
+			"dst": ["wazuh-host"],
+			"ip":  ["tcp:1514"],
+		},
+	],
+
+	// Checked on every save. "proto": "tcp" matters: without it a test means "TCP or UDP".
+	"tests": [
+		{
+			"src":    "tag:server",
+			"proto":  "tcp",
+			"accept": ["wazuh-host:1514"],
+			"deny": [
+				"wazuh-host:1515",
+				"wazuh-host:22",
+				"wazuh-host:443",
+				"wazuh-host:9200",
+				"wazuh-host:445",
+				"wazuh-host:3389",
+				"tag:server:22",
+			],
+		},
+	],
+
+	"ssh": [
+		// Default rule: SSH between your own devices, with a browser check.
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+		// Tailscale SSH to the tagged servers: only your login, only as the ubuntu user,
+		// re-verified in the browser every 12 hours. This is what lets you close public port 22.
+		// autogroup:self does NOT cover tagged devices, so without this rule you get
+		// "tailnet policy does not permit you to SSH to this node".
+		{
+			"action":      "check",
+			"src":         ["<YOUR_TAILSCALE_LOGIN>"],
+			"dst":         ["tag:server"],
+			"users":       ["ubuntu"],
+			"checkPeriod": "12h",
+		},
+	],
+}

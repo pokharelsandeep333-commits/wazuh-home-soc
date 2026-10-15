@@ -1,0 +1,251 @@
+<!--
+  Home SOC custom DETECTION rules (Wazuh 4.14.8).
+  Deploy to the manager at /var/ossec/etc/rules/home_soc_detections.xml (see docs/04-detections.md).
+  Custom IDs: 100100-100199 = tuning (home_soc_tuning.xml). 100200+ = detections (this file).
+  100200-100209 = AWS CloudTrail. 100210-100219 = web. 100220-100229 = Linux audit (CIS keys).
+-->
+
+<group name="local,aws,aws_cloudtrail,root_activity,">
+
+  <!--
+    The AWS root user should almost never sign in (break-glass only). Fields verified on real
+    CloudTrail alerts: aws.userIdentity.type=Root, aws.responseElements.ConsoleLogin=Success|Failure,
+    aws.additionalEventData.MFAUsed=Yes|No. Parent rules verified in 0350-amazon_rules.xml (v4.14.8):
+    80253 = ConsoleLogin, and its child 80254 = ConsoleLogin Failure, so a failed root login needs its own child of 80254.
+  -->
+  <rule id="100200" level="12">
+    <if_sid>80253</if_sid>
+    <field name="aws.userIdentity.type">^Root$</field>
+    <field name="aws.responseElements.ConsoleLogin">^Success$</field>
+    <description>AWS: ROOT account console login from $(aws.sourceIPAddress) (MFA: $(aws.additionalEventData.MFAUsed))</description>
+    <mitre>
+      <id>T1078.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Root MFA is enabled. A root login without MFA means MFA was removed or bypassed. -->
+  <rule id="100201" level="14">
+    <if_sid>100200</if_sid>
+    <field name="aws.additionalEventData.MFAUsed">^No$</field>
+    <description>AWS: ROOT console login WITHOUT MFA from $(aws.sourceIPAddress). MFA removed or bypassed?</description>
+    <mitre>
+      <id>T1078.004</id>
+      <id>T1556.006</id>
+    </mitre>
+  </rule>
+
+  <!-- Someone typing a wrong root password: credential guessing against the most powerful identity. -->
+  <rule id="100202" level="10">
+    <if_sid>80254</if_sid>
+    <field name="aws.userIdentity.type">^Root$</field>
+    <description>AWS: FAILED root console login from $(aws.sourceIPAddress)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1078.004</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<group name="local,aws,aws_cloudtrail,iam_change,">
+
+  <!--
+    Creating an admin IAM user showed that IAM changes only reach 80202 (level 3), so they don't page.
+    These are classic post-compromise steps (persistence / privilege escalation / defence evasion).
+    Verified in v4.14.8: 80202 only covers eventNames in etc/lists/amazon/aws-eventnames.
+    DeleteTrail, UpdateTrail and PutEventSelectors are NOT in that list (they stay at 80200 level 0), so the
+    CloudTrail-tampering rule hangs off 80200 as well as 80202. Fires on success AND failure (a denied attempt is
+    still an attempt); the description shows the error code if there was one.
+  -->
+  <rule id="100203" level="10">
+    <if_sid>80202</if_sid>
+    <field name="aws.eventName" type="pcre2">^(CreateUser|CreateAccessKey|CreateLoginProfile|UpdateLoginProfile|CreateRole|UpdateAssumeRolePolicy)$</field>
+    <description>AWS IAM: $(aws.eventName) by $(aws.userIdentity.type) $(aws.userIdentity.userName) from $(aws.sourceIPAddress) (new identity/credential) $(aws.errorCode)</description>
+    <mitre>
+      <id>T1136.003</id>
+      <id>T1098.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100205" level="10">
+    <if_sid>80202</if_sid>
+    <field name="aws.eventName" type="pcre2">^(AddUserToGroup|AttachUserPolicy|AttachGroupPolicy|AttachRolePolicy|PutUserPolicy|PutGroupPolicy|PutRolePolicy)$</field>
+    <description>AWS IAM: $(aws.eventName) by $(aws.userIdentity.type) $(aws.userIdentity.userName) from $(aws.sourceIPAddress) (permission change) $(aws.errorCode)</description>
+    <mitre>
+      <id>T1098.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="100204" level="12">
+    <if_sid>100205</if_sid>
+    <field name="aws.requestParameters.policyArn" type="pcre2">(?i)AdministratorAccess$</field>
+    <description>AWS IAM: AdministratorAccess granted via $(aws.eventName) by $(aws.userIdentity.type) $(aws.userIdentity.userName) from $(aws.sourceIPAddress) $(aws.errorCode)</description>
+    <mitre>
+      <id>T1098.003</id>
+      <id>T1078.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="100206" level="12">
+    <if_sid>80202</if_sid>
+    <field name="aws.eventName" type="pcre2">^(DeactivateMFADevice|DeleteVirtualMFADevice)$</field>
+    <description>AWS IAM: MFA removed ($(aws.eventName)) by $(aws.userIdentity.type) $(aws.userIdentity.userName) from $(aws.sourceIPAddress) $(aws.errorCode)</description>
+    <mitre>
+      <id>T1556.006</id>
+    </mitre>
+  </rule>
+
+  <rule id="100207" level="13">
+    <if_sid>80200, 80202</if_sid>
+    <field name="aws.eventSource">^cloudtrail.amazonaws.com$</field>
+    <field name="aws.eventName" type="pcre2">^(StopLogging|DeleteTrail|UpdateTrail|PutEventSelectors|PutInsightSelectors)$</field>
+    <description>AWS CloudTrail tampering: $(aws.eventName) by $(aws.userIdentity.type) $(aws.userIdentity.userName) from $(aws.sourceIPAddress) $(aws.errorCode)</description>
+    <mitre>
+      <id>T1562.008</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<group name="local,audit,cis_audit,">
+
+  <!--
+    The CIS audit rules (scripts/server/cis-ubuntu2404-batch2-audit.sh -> /etc/audit/rules.d/50-cis.rules) tag events
+    with CIS keys. Wazuh's own audit rules (0365-auditd_rules.xml) only alert on keys in etc/lists/audit-keys
+    (audit-wazuh-*), so CIS-keyed events stay at 80700 level 0. These rules turn the high-value keys into alerts.
+    Fields from 0040-auditd_decoders.xml: audit.key, audit.exe, audit.auid, audit.file.name, audit.type.
+    Excluded:
+      - exe /usr/sbin/auditctl: loading the rules emits one event per key (rule reloads = Wazuh 80705)
+      - keys delete / user_emulation / perm_mod / access / session / logins / mounts / perm_chng: noisy or already
+        covered (a git sync cron deletes files every minute; sudo = 5402; logins = sshd rules). They stay searchable at level 0.
+  -->
+  <rule id="100220" level="0">
+    <if_sid>80700</if_sid>
+    <field name="audit.key" type="pcre2">^(scope|identity|kernel_modules|MAC-policy|sudo_log_file|time-change|system-locale|usermod)$</field>
+    <field name="audit.exe" type="pcre2" negate="yes">^/usr/sbin/auditctl$</field>
+    <description>Audit (CIS key $(audit.key)) by $(audit.exe)</description>
+  </rule>
+
+  <rule id="100221" level="10">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^scope$</field>
+    <description>Audit: sudoers changed ($(audit.file.name)) by $(audit.exe), login uid $(audit.auid)</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="100222" level="8">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^identity$</field>
+    <description>Audit: account/auth file changed ($(audit.file.name)) by $(audit.exe), login uid $(audit.auid)</description>
+    <mitre>
+      <id>T1098</id>
+      <id>T1136.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100223" level="10">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^kernel_modules$</field>
+    <description>Audit: kernel module load/unload by a user ($(audit.exe)), login uid $(audit.auid)</description>
+    <mitre>
+      <id>T1547.006</id>
+    </mitre>
+  </rule>
+
+  <rule id="100224" level="7">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^MAC-policy$</field>
+    <description>Audit: AppArmor policy changed ($(audit.file.name)) by $(audit.exe)</description>
+    <mitre>
+      <id>T1562.001</id>
+    </mitre>
+  </rule>
+
+  <!-- sudo writes /var/log/sudo.log on every command: only a DIFFERENT program writing it is suspicious -->
+  <rule id="100225" level="10">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^sudo_log_file$</field>
+    <field name="audit.exe" type="pcre2" negate="yes">^/usr/bin/sudo$</field>
+    <description>Audit: sudo log modified by $(audit.exe), not sudo. Possible log tampering</description>
+    <mitre>
+      <id>T1070.002</id>
+    </mitre>
+  </rule>
+
+  <!-- logrotate renames/recreates sudo.log on schedule (/etc/logrotate.d/sudo-log, monthly). Expected: keep it visible
+       at level 3 but don't page. Any OTHER program writing the log still alerts at level 10 via 100225. -->
+  <rule id="100229" level="3">
+    <if_sid>100225</if_sid>
+    <field name="audit.exe" type="pcre2">^/usr/sbin/logrotate$</field>
+    <description>Audit: sudo log rotated by logrotate (expected)</description>
+  </rule>
+
+  <rule id="100226" level="7">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^time-change$</field>
+    <description>Audit: system time changed by $(audit.exe)</description>
+    <mitre>
+      <id>T1070.006</id>
+    </mitre>
+  </rule>
+
+  <rule id="100227" level="6">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^system-locale$</field>
+    <description>Audit: hostname/network/banner config changed ($(audit.file.name)) by $(audit.exe)</description>
+  </rule>
+
+  <rule id="100228" level="8">
+    <if_sid>100220</if_sid>
+    <field name="audit.key">^usermod$</field>
+    <description>Audit: usermod executed, login uid $(audit.auid)</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<group name="local,web,accesslog,attack,secret_probe,">
+
+  <!--
+    Bots constantly request /.env, /.git/config, /.aws/credentials... hoping a site serves a
+    secrets file by mistake. Wazuh 4.14.8 has no dedicated rule (a probe only shows as a plain 404, 31101).
+    if_sid mirrors Wazuh's 31103: a 2xx/3xx simple request is claimed by 31108, a 4xx by 31101, a 5xx by 31120,
+    so the rule must hang off all of them or it never sees those events.
+    Matches anywhere in the URL, case-insensitive: /.env, /.env.local, /api/.env, /.git/config, /.git, /.aws/, /.ssh/, /.htpasswd
+    Does NOT match: /environment, /.well-known/..., /git/...
+  -->
+  <rule id="100210" level="8">
+    <if_sid>31100, 31101, 31108, 31120</if_sid>
+    <url type="pcre2">(?i)/\.(?:env|git(?:/|$|\?)|aws/|ssh/|htpasswd)</url>
+    <description>Web: probe for a secrets file ($(url)) from $(srcip)</description>
+    <mitre>
+      <id>T1595.003</id>
+      <id>T1552.001</id>
+    </mitre>
+  </rule>
+
+  <!-- The probe got a 2xx: the file may actually have been served. Highest priority. -->
+  <rule id="100211" level="12">
+    <if_sid>100210</if_sid>
+    <id>^2</id>
+    <description>Web: secrets-file probe got HTTP $(id) for $(url) from $(srcip). Possible exposure, verify now</description>
+    <mitre>
+      <id>T1552.001</id>
+    </mitre>
+  </rule>
+
+  <!-- One IP walking a wordlist of secret paths = a scanner. -->
+  <rule id="100212" level="10" frequency="5" timeframe="120">
+    <if_matched_sid>100210</if_matched_sid>
+    <same_srcip />
+    <description>Web: repeated secrets-file probes from $(srcip) (5+ in 2 min, scanner)</description>
+    <mitre>
+      <id>T1595.003</id>
+    </mitre>
+  </rule>
+
+</group>

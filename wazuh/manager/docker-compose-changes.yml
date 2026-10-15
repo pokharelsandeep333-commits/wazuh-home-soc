@@ -1,0 +1,34 @@
+# Changes to the official wazuh-docker single-node docker-compose.yml (tag v4.14.8).
+# This is NOT a complete compose file. Clone the official repo and edit the wazuh.manager,
+# wazuh.indexer and wazuh.dashboard services to match the lines marked CHANGED.
+#
+#   git clone -c core.autocrlf=false --depth 1 --branch v4.14.8 https://github.com/wazuh/wazuh-docker.git
+#   cd wazuh-docker/single-node
+#
+# Why each change: docs/02-wazuh-deploy.md
+
+services:
+  wazuh.manager:
+    ports:
+      - "1514:1514"                  # agent events. The ONLY network-facing port; a firewall rule limits it to Tailscale
+      # - "1515:1515"                # CHANGED: enrollment port closed. Uncomment only while enrolling a new agent
+      # - "514:514/udp"              # CHANGED: syslog listener removed (not used)
+      - "127.0.0.1:15500:55000"      # CHANGED: Wazuh API on localhost only, and on a host port BELOW 49152.
+                                     # Windows/WinNAT can reserve ports in 49152-65535 after a restart; if 55000 is
+                                     # reserved, Docker publishes NONE of this container's ports and agents go dark.
+    volumes:
+      # CHANGED (only if you use docs/05-cloudtrail.md): read-only AWS credentials for the aws-s3 module.
+      # Linux/WSL host path shown. On Docker Desktop for Windows use e.g. C:/wazuh/secrets/aws-credentials
+      - ~/wazuh/secrets/aws-credentials:/root/.aws/credentials:ro
+
+  wazuh.indexer:
+    ports:
+      - "127.0.0.1:9200:9200"        # CHANGED: indexer API on localhost only
+
+  wazuh.dashboard:
+    ports:
+      - "127.0.0.1:443:5601"         # CHANGED: dashboard on localhost only. Reach it remotely with an SSH tunnel:
+                                     #   ssh -L 8443:127.0.0.1:443 <wazuh-host>   then open https://localhost:8443
+
+# Passwords: the official compose file holds the default passwords for admin, kibanaserver and wazuh-wui.
+# Change ALL of them before agents connect (docs/02-wazuh-deploy.md, "Change the default passwords").

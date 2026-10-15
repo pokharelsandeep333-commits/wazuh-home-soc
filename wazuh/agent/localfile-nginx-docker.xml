@@ -1,0 +1,13 @@
+<!--
+  Web server logs (docs/04-detections.md, "Web logs").
+  Host nginx: the agent's default config already reads /var/log/nginx/access.log and error.log. Nothing to add.
+  Dockerized nginx that only logs to stdout: scripts/server/weblogs-docker-nginx.sh adds a second access log on a
+  host bind mount, then appends this block. Keep that log folder OUTSIDE any FIM-watched folder, or every web
+  request triggers a file-change alert.
+-->
+<ossec_config>
+  <localfile>
+    <log_format>apache</log_format>
+    <location>/var/log/<APP_NAME>-nginx/access.log</location>
+  </localfile>
+</ossec_config>

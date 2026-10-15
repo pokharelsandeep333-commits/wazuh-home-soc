@@ -1,0 +1,11 @@
+<!--
+  Linux audit log (docs/04-detections.md, "Linux audit"). Added by scripts/server/cis-ubuntu2404-batch2-audit.sh.
+  Wazuh only ALERTS on CIS-keyed audit events through the custom rules 100220-100229 (home_soc_detections.xml);
+  its stock audit rules only cover keys in etc/lists/audit-keys.
+-->
+<ossec_config>
+  <localfile>
+    <log_format>audit</log_format>
+    <location>/var/log/audit/audit.log</location>
+  </localfile>
+</ossec_config>

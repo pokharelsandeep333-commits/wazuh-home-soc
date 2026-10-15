@@ -1,0 +1,24 @@
+# Secrets and local values. Nothing in this repo should ever hold a real one.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.csv
+aws-credentials
+credentials
+*webhook*.txt
+kuma-push-url
+client.keys
+
+# Wazuh generated material
+wazuh-certificates/
+config/wazuh_indexer_ssl_certs/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

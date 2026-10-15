@@ -1,0 +1,169 @@
+<!--
+  Home SOC tuning rules (Wazuh 4.14.8).
+  Deploy to the manager at /var/ossec/etc/rules/home_soc_tuning.xml (see docs/04-detections.md).
+  Custom IDs: 100100-100199 = tuning (noise suppression). 100200+ = detections.
+  Every rule here is scoped as narrowly as possible: the noisy event is silenced, anything similar still alerts.
+-->
+<group name="local,apparmor,home_soc_tuning,">
+
+  <!--
+    Ubuntu 26.04's AppArmor "who" profile denies reads of /etc/passwd and /etc/nsswitch.conf at every
+    SSH login. Benign: 42/42 rule 52002 alerts were exactly this, and the timestamps matched SSH logins.
+    Silence ONLY this exact combination: profile=who, comm=who, read of those two files.
+    Any other AppArmor denial still alerts.
+    Example:
+    kernel: audit: type=1400 audit(...): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=16069 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+  -->
+  <rule id="100100" level="0">
+    <if_sid>52002</if_sid>
+    <match type="pcre2">operation="open" class="file" profile="who" name="/etc/(?:passwd|nsswitch\.conf)" pid=\d+ comm="who" requested_mask="r" </match>
+    <description>AppArmor: benign who-profile read denial at SSH login (Ubuntu 26.04), suppressed</description>
+  </rule>
+
+</group>
+
+<group name="local,docker,home_soc_tuning,">
+
+  <!--
+    The Docker listener reports every `docker exec` as 87907 (level 3). Docker HEALTHCHECKs and a host cron
+    job also run as execs: about 14k alerts/day of noise. Silence ONLY each exact command in the exact
+    container it belongs to (verified with `docker inspect -f '{{json .Config.Healthcheck.Test}}' <container>`).
+    The same command in another container, any other command, and shells (87908) still alert.
+    \Q...\E = literal text in PCRE2. Docker may append a trailing space to the action, hence \s*$.
+
+    REPLACE the container names and commands below with your own. These are examples from my web server.
+  -->
+  <rule id="100102" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_db_1$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: healthcheck.sh --connect --innodb_initialized\E\s*$</field>
+    <description>Docker: MariaDB healthcheck exec (webapp_db_1), suppressed</description>
+  </rule>
+
+  <rule id="100103" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp-redis-1$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: redis-cli ping\E\s*$</field>
+    <description>Docker: Redis healthcheck exec (webapp-redis-1), suppressed</description>
+  </rule>
+
+  <rule id="100104" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_node$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: node -e fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\E\s*$</field>
+    <description>Docker: Node app healthcheck exec (webapp_node), suppressed</description>
+  </rule>
+
+  <rule id="100105" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_nextcloud_1$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: curl -f http://localhost/status.php\E\s*$</field>
+    <description>Docker: Nextcloud healthcheck exec (webapp_nextcloud_1), suppressed</description>
+  </rule>
+
+  <rule id="100106" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_watchtower$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: /watchtower --health-check\E\s*$</field>
+    <description>Docker: Watchtower healthcheck exec (webapp_watchtower), suppressed</description>
+  </rule>
+
+  <!-- Nextcloud background jobs: the host's cron runs `docker exec ... php -f /var/www/html/cron.php` every 5 min -->
+  <rule id="100107" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_nextcloud_1$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: php -f /var/www/html/cron.php\E\s*$</field>
+    <description>Docker: Nextcloud cron.php exec (webapp_nextcloud_1), suppressed</description>
+  </rule>
+
+</group>
+
+<group name="web,accesslog,home_soc_tuning,">
+
+  <!--
+    31151 "Multiple web server 400 error codes from same source ip" (level 10) was 6 of 44 Discord pings
+    in 2 days. All were internet scanners hitting 404s, and the same scanner often also fired 100212
+    (secrets-file probes, level 10): two pings for one event. 100211/100212 already page for the dangerous
+    case. Generic 404 scanning of a public server is background noise: keep it stored and searchable
+    (level 8), but don't page.
+    Same rule, same ID, same logic; only level 10 -> 8 (overwrite = full copy of the stock rule, 0245-web_rules.xml).
+  -->
+  <rule id="31151" level="8" frequency="14" timeframe="90" overwrite="yes">
+    <if_matched_sid>31101</if_matched_sid>
+    <same_source_ip />
+    <description>Multiple web server 400 error codes </description>
+    <description>from same source ip.</description>
+    <mitre>
+      <id>T1595.002</id>
+    </mitre>
+    <group>web_scan,recon,pci_dss_6.5,pci_dss_11.4,gdpr_IV_35.7.d,nist_800_53_SA.11,nist_800_53_SI.4,tsc_CC6.6,tsc_CC7.1,tsc_CC8.1,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+</group>
+
+<group name="local,audit,home_soc_tuning,">
+
+  <!--
+    auditd ANOM_PROMISCUOUS (rule 80710, level 10) pinged Discord on every container restart.
+    Proven benign: Watchtower pulled a new image and recreated a container; one second later, 2x 80710
+    for the old and new veth interfaces. Docker attaches each container's veth to its bridge, which
+    toggles promiscuous mode. 15/15 alerts that day were veth* devices with auid=4294967295
+    (unset = kernel/dockerd, no logged-in user).
+    Scope: ONLY veth* devices AND no human auid. Promiscuous mode on a real NIC (ens5/eth0, a sniffer)
+    or anything caused by a logged-in user still fires 80710 at level 10.
+    Level 3 (not 0): still stored and searchable, just no Discord page.
+    Example:
+    type=ANOM_PROMISCUOUS msg=audit(1791664063.335:17963): dev=vethfdbb7eb prom=256 old_prom=0 auid=4294967295 uid=0 gid=0 ses=4294967295
+  -->
+  <rule id="100108" level="3">
+    <if_sid>80710</if_sid>
+    <field name="audit.dev" type="pcre2">^veth[0-9a-f]+$</field>
+    <field name="audit.auid" type="pcre2">^4294967295$</field>
+    <description>Auditd: Docker veth interface promiscuous mode change (container start/stop), expected</description>
+  </rule>
+
+</group>
+
+<group name="local,rootcheck,home_soc_tuning,">
+
+  <!--
+    rootcheck "Trojaned version of file" (rule 510, level 7) on Ubuntu 26.04 for ls, env, echo,
+    chown, chmod, chgrp, cat, uname, date, md5sum. FALSE POSITIVE, proven:
+      - Ubuntu 26.04 ships Rust coreutils (uutils): all 10 are links to ONE multicall binary
+        /usr/lib/cargo/bin/coreutils/* (package rust-coreutils 0.10.0-1ubuntu2~26.04.1)
+      - dpkg --verify clean; sha256 identical to a fresh copy from the Ubuntu archive
+      - the multicall binary contains "bash" (shell completions), "/bin/sh", "dev/random"... which hit
+        rootcheck's generic string signatures in rootkit_trojans.txt
+    Scope: only the Generic-signature finding on exactly these 10 paths. Other rootcheck findings still alert.
+    Compensating control: FIM on /usr/bin + /bin (default), and on /usr/lib/cargo/bin
+    (wazuh/agent/fim-cargo-bin.xml, the real binaries).
+    Same pattern as Wazuh's own rule 511 (level-0 child of 510).
+  -->
+  <rule id="100101" level="0">
+    <if_sid>510</if_sid>
+    <match type="pcre2">^Trojaned version of file '/(?:usr/)?bin/(?:ls|env|echo|chown|chmod|chgrp|cat|uname|date|md5sum)' detected\. Signature used: '[^']*' \(Generic\)\.$</match>
+    <description>Rootcheck: Rust coreutils (uutils) generic-signature false positive, suppressed</description>
+  </rule>
+
+</group>
+
+<group name="local,vulnerability-detector,home_soc_tuning,">
+
+  <!--
+    About 95 % of vulnerability findings on my servers were the Ubuntu kernel (package linux-aws), with
+    NO fixed kernel from Ubuntu yet (both servers already ran the newest kernel). Stock rules 23505
+    (High, L10) and 23506 (Critical, L13) page Discord (level >= 10). When unattended-upgrades installs a
+    new kernel package, the still-open kernel CVEs are re-evaluated against the new package and can arrive
+    as hundreds of "new" alerts at once = Discord flood.
+    Scope: ONLY packages named linux-* (linux-aws, linux-image-*, linux-modules-*, linux-headers-*, ...).
+    Every other package still pages at High/Critical. Level 7 (same as Medium): still stored, searchable
+    and shown in Vulnerability Detection > Inventory; just no Discord ping. Review kernel CVEs there,
+    and reboot after kernel updates (unattended-upgrades does not reboot).
+  -->
+  <rule id="100109" level="7">
+    <if_sid>23505, 23506</if_sid>
+    <field name="vulnerability.package.name" type="pcre2">^linux-</field>
+    <description>Vulnerability (kernel, demoted from $(vulnerability.severity) to avoid Discord floods): $(vulnerability.cve) affects $(vulnerability.package.name)</description>
+  </rule>
+
+</group>

@@ -1,0 +1,13 @@
+<!--
+  Docker container events: create/start/stop/destroy, docker exec, shells in containers, docker cp
+  (docs/04-detections.md, "Containers"). scripts/server/docker-listener.sh sets up the Python venv the
+  listener needs and appends this block.
+
+  The listener waits 60 seconds after an agent restart before it starts listening. Test after that.
+  An agent upgrade overwrites /var/ossec/wodles/docker/DockerListener: re-point its shebang at the venv afterwards.
+-->
+<ossec_config>
+  <wodle name="docker-listener">
+    <disabled>no</disabled>
+  </wodle>
+</ossec_config>

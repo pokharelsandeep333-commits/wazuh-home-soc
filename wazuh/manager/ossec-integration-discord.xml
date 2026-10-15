@@ -1,0 +1,20 @@
+<!--
+  Discord alerts for every alert at level 10 or above (docs/06-discord-alerts.md).
+  Add inside <ossec_config> in wazuh_manager.conf, or use scripts/manager/set-discord-webhook.ps1.
+
+  Wazuh has no Discord integration, but Discord accepts Slack-format messages at <webhook URL>/slack,
+  so Wazuh's built-in "slack" integration works with no custom code.
+
+  The <options> line is REQUIRED for Discord: Wazuh's slack.py sets "ts" to the alert ID, a decimal string.
+  Slack accepts it; Discord's Slack-compatible endpoint rejects the whole message with HTTP 400.
+  generate_msg() applies <options> after setting ts, so {"ts": null} overrides it. No Wazuh code is patched.
+
+  The hook URL is a secret: anyone holding it can post to your channel. Never commit it.
+-->
+<integration>
+  <name>slack</name>
+  <hook_url><DISCORD_WEBHOOK_URL>/slack</hook_url>
+  <level>10</level>
+  <alert_format>json</alert_format>
+  <options>{"ts": null, "pretext": "WAZUH Alert - Triage: open your playbook and find the Rule ID below"}</options>
+</integration>

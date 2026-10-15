@@ -1,0 +1,9 @@
+<!--
+  Ubuntu 26.04 only. Insert inside <syscheck> (or run scripts/server/fim-cargo-bin.sh).
+
+  On 26.04, /usr/bin/ls, cat, chmod... are symlinks to ONE Rust coreutils multicall binary in
+  /usr/lib/cargo/bin/coreutils/, next to a setuid-root su. Default FIM watches /usr/bin and only sees the links.
+  This watches the real binaries. It is the compensating control for tuning rule 100101, which silences
+  rootcheck's false "trojaned binary" findings on those same tools.
+-->
+<directories realtime="yes" check_all="yes">/usr/lib/cargo/bin</directories>

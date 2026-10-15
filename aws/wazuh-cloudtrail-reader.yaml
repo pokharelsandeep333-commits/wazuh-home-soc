@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Home SOC - read-only IAM user for the Wazuh manager to pull CloudTrail logs from an existing trail bucket.
+  Least privilege - list the bucket, read only this account's AWSLogs prefix. No console access, no write
+  or delete. Create the access key yourself in the console, never through this template, so the secret
+  never appears in stack outputs or events.
+
+  Deploy:
+    aws cloudformation deploy --template-file aws/wazuh-cloudtrail-reader.yaml
+      --stack-name wazuh-cloudtrail-reader --capabilities CAPABILITY_NAMED_IAM
+      --parameter-overrides TrailBucket=<CLOUDTRAIL_BUCKET>
+  Remove: delete the stack (removes the user and the policy).
+
+Parameters:
+  TrailBucket:
+    Type: String
+    Description: Name of the S3 bucket your CloudTrail trail delivers to
+
+Resources:
+  WazuhCloudTrailReadOnly:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: WazuhCloudTrailReadOnly
+      Description: Wazuh aws-s3 module - read-only access to the CloudTrail log bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # Wazuh lists the bucket to discover accounts, regions and dates (key names only)
+          - Sid: ListTrailBucket
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${TrailBucket}
+          # Read only this account's CloudTrail objects (tighter than Wazuh's sample, which grants bucket/*)
+          - Sid: ReadTrailLogs
+            Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${TrailBucket}/AWSLogs/${AWS::AccountId}/*
+
+  WazuhReaderUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: wazuh-cloudtrail-reader
+      ManagedPolicyArns:
+        - !Ref WazuhCloudTrailReadOnly
+      Tags:
+        - Key: Project
+          Value: home-soc
+        - Key: Purpose
+          Value: wazuh-cloudtrail-read-only
+
+Outputs:
+  UserName:
+    Value: !Ref WazuhReaderUser
+  PolicyArn:
+    Value: !Ref WazuhCloudTrailReadOnly
