@@ -87,6 +87,8 @@
     case. Generic 404 scanning of a public server is background noise: keep it stored and searchable
     (level 8), but don't page.
     Same rule, same ID, same logic; only level 10 -> 8 (overwrite = full copy of the stock rule, 0245-web_rules.xml).
+    Attribution: this rule is copied from the Wazuh ruleset (https://github.com/wazuh/wazuh, ruleset/rules/0245-web_rules.xml,
+    v4.14.8), Copyright (C) Wazuh Inc., licensed under GPLv2. Only the level was changed. The rest of this repo is MIT.
   -->
   <rule id="31151" level="8" frequency="14" timeframe="90" overwrite="yes">
     <if_matched_sid>31101</if_matched_sid>

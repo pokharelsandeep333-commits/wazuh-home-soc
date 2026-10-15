@@ -4,7 +4,7 @@
 
 **A home SOC for my AWS servers: Wazuh SIEM over Tailscale, 32 tested detection rules, $0 extra cost**
 
-[![Rule tests](https://img.shields.io/badge/rule%20tests-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml)
+[![Rule tests](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml/badge.svg)](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 ![Wazuh](https://img.shields.io/badge/Wazuh-4.14.8-0072C6?style=flat-square)
@@ -210,4 +210,4 @@ I designed it, made the security decisions, ran the attack tests, and ran everyt
 
 ---
 
-<sub>[MIT License](LICENSE) · [Security notes](SECURITY.md)</sub>
+<sub>[MIT License](LICENSE) · [Security notes](SECURITY.md) · Rule 31151 in `home_soc_tuning.xml` is adapted from the [Wazuh ruleset](https://github.com/wazuh/wazuh) (GPLv2), with only its level changed.</sub>
