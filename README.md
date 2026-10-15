@@ -61,6 +61,8 @@ The [Tailscale policy](tailscale/policy.hujson) is written so that a hacked serv
 - The dashboard, API and indexer listen on `127.0.0.1` only. I reach the dashboard through an SSH tunnel.
 - **Public port 22 is closed** on both servers. Admin access goes through Tailscale SSH, tied to my Tailscale identity instead of a key file on disk.
 
+<p align="center"><img src="docs/evidence/tailscale-policy-tests.png" alt="The live Tailscale policy tests: accept the Wazuh host on 1514, deny every other path" width="60%"></p>
+
 ## What it detects
 
 | Area | What I set up |
@@ -95,6 +97,8 @@ Other live tests:
 - **AWS root login:** rule 100200 (level 12) about 7 minutes later.
 - **File integrity:** create, edit and delete each alerted within about 1 second on all three machines.
 - **Discord:** six probes produced 100210 five times, then 100212, and the message arrived in the channel.
+
+<p align="center"><img src="docs/evidence/discord-alert-100212.png" alt="Discord message from Wazuh for rule 100212, level 10" width="380"></p>
 
 ## CIS hardening
 
