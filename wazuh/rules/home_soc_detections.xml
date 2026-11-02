@@ -1,5 +1,5 @@
 <!--
-  Home SOC custom DETECTION rules (Wazuh 4.14.8).
+  Home SOC custom DETECTION rules (Wazuh 4.14.9).
   Deploy to the manager at /var/ossec/etc/rules/home_soc_detections.xml (see docs/04-detections.md).
   Custom IDs: 100100-100199 = tuning (home_soc_tuning.xml). 100200+ = detections (this file).
   100200-100209 = AWS CloudTrail. 100210-100219 = web. 100220-100229 = Linux audit (CIS keys).

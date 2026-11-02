@@ -7,7 +7,7 @@
    ```bash
    sudo WAZUH_MANAGER=<WAZUH_MANAGER_IP> AGENT_NAME=webserver bash scripts/server/install-agent.sh
    ```
-   The script checks both ports over Tailscale, installs the agent from Wazuh's signed apt repo pinned to **4.14.8-1**, and puts it on `apt hold`. An agent must never be newer than the manager, so upgrade the manager first, always.
+   The script checks both ports over Tailscale, installs the agent from Wazuh's signed apt repo pinned to **4.14.9-1**, and puts it on `apt hold`. An agent must never be newer than the manager, so upgrade the manager first, always.
 3. On the manager:
    ```bash
    docker exec single-node-wazuh.manager-1 /var/ossec/bin/agent_control -l
@@ -30,8 +30,8 @@ Import the key on the agent (`manage_agents -i` on Linux, or write it into `clie
 
 I put an agent on the homelab box itself, so the SIEM host is monitored too:
 
-- MSI from `packages.wazuh.com/4.x/windows/`, the same 4.14.8 version as the manager. Wazuh publishes no checksum file, so I checked the **Authenticode signature** instead (`Get-AuthenticodeSignature`: Valid, signer "Wazuh, Inc").
-- `msiexec /i wazuh-agent-4.14.8-1.msi /q WAZUH_MANAGER="127.0.0.1" WAZUH_AGENT_NAME="homelab"`. The manager is on the same machine, and WSL mirrored mode passes loopback, so there's no Tailscale dependency.
+- MSI from `packages.wazuh.com/4.x/windows/`, the same 4.14.9 version as the manager. Wazuh publishes no checksum file, so I checked the **Authenticode signature** instead (`Get-AuthenticodeSignature`: Valid, signer "Wazuh, Inc").
+- `msiexec /i wazuh-agent-4.14.9-1.msi /q WAZUH_MANAGER="127.0.0.1" WAZUH_AGENT_NAME="homelab"`. The manager is on the same machine, and WSL mirrored mode passes loopback, so there's no Tailscale dependency.
 - Enrolled with the key method above. Out of the box it covers Windows event logs, FIM on key folders and registry, the CIS Windows 11 SCA policy and vulnerability detection for installed apps.
 
 ## What I added to each agent

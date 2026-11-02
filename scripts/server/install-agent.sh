@@ -6,7 +6,7 @@
 set -euo pipefail
 : "${WAZUH_MANAGER:?set WAZUH_MANAGER to the Tailscale IP of the manager}"
 : "${AGENT_NAME:?set AGENT_NAME}"
-VERSION=${VERSION:-4.14.8-1}   # never newer than the manager
+VERSION=${VERSION:-4.14.9-1}   # never newer than the manager
 
 echo "[1] Reachability over Tailscale"
 nc -zv -w 5 "$WAZUH_MANAGER" 1514

@@ -15,7 +15,7 @@ docker cp wazuh/tests/. single-node-wazuh.manager-1:/tmp/home-soc-tests/
 docker exec single-node-wazuh.manager-1 /var/ossec/framework/python/bin/python3 /tmp/home-soc-tests/run_logtest.py
 ```
 
-The same test suite runs in CI against a clean `wazuh/wazuh-manager:4.14.8` container on every push ([.github/workflows/rules.yml](../.github/workflows/rules.yml)). Most cases come in pairs: the event a rule should catch or silence, and a similar one that must **still** alert. Rootcheck and vulnerability events can't be replayed through logtest, so 100101 and 100109 are covered by the notes below instead.
+The same test suite runs in CI against a clean `wazuh/wazuh-manager:4.14.9` container on every push ([.github/workflows/rules.yml](../.github/workflows/rules.yml)). Most cases come in pairs: the event a rule should catch or silence, and a similar one that must **still** alert. Rootcheck and vulnerability events can't be replayed through logtest, so 100101 and 100109 are covered by the notes below instead.
 
 ## File integrity (FIM)
 
@@ -72,7 +72,7 @@ The audit rules use `auid>=1000 -F auid!=unset` where CIS allows it: human actio
 
 [scripts/server/docker-listener.sh](../scripts/server/docker-listener.sh). Alerts on `docker exec` (87907), shells in containers (87908), destroyed containers (87902), `docker cp` (87910/87911).
 
-Docker runs every HEALTHCHECK as an exec: about **14,000 alerts a day**. Tuning rules 100102-100107 each match **one exact command in one exact container**, using PCRE2 `\Q...\E` so the command is literal. The same command in another container, an extra `; id` appended, or a shell still alert. **Replace the container names and commands with yours**: `docker inspect -f '{{json .Config.Healthcheck.Test}}' <container>`.
+Docker runs every HEALTHCHECK as an exec: about **14,000 alerts a day**. Tuning rules 100102-100107 and 100110-100113 each match **one exact command in one exact container**, using PCRE2 `\Q...\E` so the command is literal. The same command in another container, an extra `; id` appended, or a shell still alert. **Replace the container names and commands with yours**: `docker inspect -f '{{json .Config.Healthcheck.Test}}' <container>`.
 
 ## Vulnerability detection
 
@@ -88,7 +88,7 @@ Every tuning rule followed the same steps: find the noisy alert, **prove** it be
 |---|---|---|
 | 100100 | AppArmor `who` denials at every SSH login (Ubuntu 26.04) | 42/42 alerts were the same two reads, timestamps matched SSH logins |
 | 100101 | 58 rootcheck "trojaned binary" alerts on `ls`, `cat`, `chmod`... (Ubuntu 26.04) | All 10 are links to one Rust coreutils binary, byte-for-byte identical to a fresh copy from Ubuntu's archive; Wazuh's string signatures match normal text inside it. Compensating control: FIM on the real binaries ([fim-cargo-bin.sh](../scripts/server/fim-cargo-bin.sh)) |
-| 100102-100107 | Docker healthcheck execs | `docker inspect` per container |
+| 100102-100107, 100110-100113 | Docker healthcheck execs | `docker inspect` per container, and the exact `docker.Action` text from live 87907 alerts (a CMD-SHELL check arrives as `/bin/sh -c ...`) |
 | 100108 | auditd "promiscuous mode" (level 10) on every container restart | 15/15 were `veth*` devices with no logged-in user, one second after Watchtower recreated a container |
 | 31151 overwrite | "Multiple 400s from one IP" paging for every internet scanner | Demoted 10 → 8: still stored, no page. 100211/100212 still page the dangerous case |
 | 100109 | Kernel CVE floods | Both servers already ran the newest kernel |
