@@ -1,5 +1,5 @@
 <!--
-  Home SOC tuning rules (Wazuh 4.14.8).
+  Home SOC tuning rules (Wazuh 4.14.9).
   Deploy to the manager at /var/ossec/etc/rules/home_soc_tuning.xml (see docs/04-detections.md).
   Custom IDs: 100100-100199 = tuning (noise suppression). 100200+ = detections.
   Every rule here is scoped as narrowly as possible: the noisy event is silenced, anything similar still alerts.
@@ -74,6 +74,41 @@
     <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_nextcloud_1$</field>
     <field name="docker.Action" type="pcre2">^\Qexec_start: php -f /var/www/html/cron.php\E\s*$</field>
     <description>Docker: Nextcloud cron.php exec (webapp_nextcloud_1), suppressed</description>
+  </rule>
+
+  <!--
+    Added later: health checks for a static site (nginx:alpine, busybox wget), a Next.js app with no curl or
+    wget in its image, the reverse proxy itself, and Uptime Kuma's image HEALTHCHECK. Kuma's is CMD-SHELL,
+    so Docker runs it through /bin/sh -c. The Next.js command has a "<", which XML can't hold raw, so it is
+    \x3c outside the \Q...\E literal. The nginx check names a real host because the default server drops
+    unknown hosts (return 444); use your own domain.
+  -->
+  <rule id="100110" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_static$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: wget -q --spider http://127.0.0.1/\E\s*$</field>
+    <description>Docker: static site healthcheck exec (webapp_static), suppressed</description>
+  </rule>
+
+  <rule id="100111" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_nextjs$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: node -e fetch('http://127.0.0.1:3000/').then((response) => process.exit(response.status \E\x3c\Q 500 ? 0 : 1)).catch(() => process.exit(1))\E\s*$</field>
+    <description>Docker: Next.js app healthcheck exec (webapp_nextjs), suppressed</description>
+  </rule>
+
+  <rule id="100112" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^webapp_nginx_1$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: curl -fsS -o /dev/null -H Host: example.com http://127.0.0.1/\E\s*$</field>
+    <description>Docker: nginx healthcheck exec (webapp_nginx_1), suppressed</description>
+  </rule>
+
+  <rule id="100113" level="0">
+    <if_sid>87907</if_sid>
+    <field name="docker.Actor.Attributes.name" type="pcre2">^uptime-kuma$</field>
+    <field name="docker.Action" type="pcre2">^\Qexec_start: /bin/sh -c extra/healthcheck\E\s*$</field>
+    <description>Docker: Uptime Kuma healthcheck exec (uptime-kuma), suppressed</description>
   </rule>
 
 </group>

@@ -1,6 +1,6 @@
 # 2. Deploy Wazuh (single-node Docker)
 
-Wazuh 4.14.8, single-node, from the official [wazuh-docker](https://github.com/wazuh/wazuh-docker) repo. I first ran it in Docker Desktop on my Windows laptop, then moved it to an always-on homelab box running Docker Engine inside WSL2 Ubuntu 24.04. Both are covered; where they differ it's marked.
+Wazuh 4.14.9 (built on 4.14.8; the upgrade changed only the three image tags), single-node, from the official [wazuh-docker](https://github.com/wazuh/wazuh-docker) repo. I first ran it in Docker Desktop on my Windows laptop, then moved it to an always-on homelab box running Docker Engine inside WSL2 Ubuntu 24.04. Both are covered; where they differ it's marked.
 
 ## Requirements (check before starting)
 
@@ -40,7 +40,7 @@ Set "never sleep on AC" and "lid close: do nothing on AC". For a laptop that sta
 ## Part B: Clone outside OneDrive, with LF line endings
 
 ```bash
-git clone -c core.autocrlf=false --depth 1 --branch v4.14.8 https://github.com/wazuh/wazuh-docker.git
+git clone -c core.autocrlf=false --depth 1 --branch v4.14.9 https://github.com/wazuh/wazuh-docker.git
 cd wazuh-docker/single-node
 ```
 
@@ -95,7 +95,7 @@ What I added on top of the official steps:
 - **Hash with Wazuh's own tool, password passed through an environment variable**, never on a command line:
   ```powershell
   $env:WZ_PW = $plain
-  docker run --rm -e WZ_PW wazuh/wazuh-indexer:4.14.8 bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh -env WZ_PW
+  docker run --rm -e WZ_PW wazuh/wazuh-indexer:4.14.9 bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh -env WZ_PW
   ```
 - **Character whitelist**: letters, digits and `! % * - _ = + . , ? : ~ @`. `$` triggers compose variable interpolation, `#` starts a YAML comment, and `& | ; ' " \` break shell scripts inside the containers. `wazuh-wui` also needs upper, lower, digit and symbol, 8-64 characters, or the manager won't start.
 - **Lock the four unused demo users** (`kibanaro`, `logstash`, `readall`, `snapshotrestore`) with random passwords nobody knows.

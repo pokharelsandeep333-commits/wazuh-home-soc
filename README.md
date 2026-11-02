@@ -2,12 +2,12 @@
 
 # Wazuh Home SOC
 
-**A home SOC for my AWS servers: Wazuh SIEM over Tailscale, 32 tested detection rules, $0 extra cost**
+**A home SOC for my AWS servers: Wazuh SIEM over Tailscale, 36 tested detection rules, $0 extra cost**
 
 [![Rule tests](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml/badge.svg)](https://github.com/pokharelsandeep333-commits/wazuh-home-soc/actions/workflows/rules.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-![Wazuh](https://img.shields.io/badge/Wazuh-4.14.8-0072C6?style=flat-square)
+![Wazuh](https://img.shields.io/badge/Wazuh-4.14.9-0072C6?style=flat-square)
 ![Tailscale](https://img.shields.io/badge/Tailscale-WireGuard-242424?style=flat-square&logo=tailscale&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-EC2%20·%20CloudTrail%20·%20IAM%20·%20CloudFormation-FF9900?style=flat-square)
@@ -18,7 +18,7 @@
 ![Discord](https://img.shields.io/badge/Discord-alerts-5865F2?style=flat-square&logo=discord&logoColor=white)
 ![Uptime Kuma](https://img.shields.io/badge/Uptime%20Kuma-dead--man's%20switch-5CDD8B?style=flat-square&logo=uptimekuma&logoColor=white)
 
-| 32 | 36 / 36 | 3 + AWS | 53% → 65% | 0 |
+| 36 | 42 / 42 | 3 + AWS | 53% → 65% | 0 |
 |:---:|:---:|:---:|:---:|:---:|
 | custom rules | tests passing in CI | endpoints + account monitored | CIS score, web server | SIEM ports open to the internet |
 
@@ -77,7 +77,7 @@ The [Tailscale policy](tailscale/policy.hujson) is written so that a hacked serv
 | Notifications | Discord message for every alert at level 10 or above |
 | Who watches the watcher | A 5-minute health check that alerts if Wazuh itself goes down, and an Uptime Kuma dead-man's switch for the whole host |
 
-The rules are in [wazuh/rules/](wazuh/rules/). [wazuh/tests/](wazuh/tests/) replays 36 sample events through `wazuh-logtest`, most of them in pairs: the event a rule should catch or silence, and a similar one that must still alert. [CI](.github/workflows/rules.yml) runs them against a clean Wazuh 4.14.8 manager on every push.
+The rules are in [wazuh/rules/](wazuh/rules/). [wazuh/tests/](wazuh/tests/) replays 42 sample events through `wazuh-logtest`, most of them in pairs: the event a rule should catch or silence, and a similar one that must still alert. [CI](.github/workflows/rules.yml) runs them against a clean Wazuh 4.14.9 manager on every push.
 
 ## Attacking my own servers
 
@@ -180,7 +180,7 @@ Parts are specific to my machines and the docs say so: the Wazuh host is Windows
 │   ├── manager/                     compose changes + manager config (aws-s3, Discord, vulnerability detection)
 │   ├── agent/                       agent config (FIM, nginx logs, Docker listener, audit log)
 │   ├── rules/                       home_soc_detections.xml, home_soc_tuning.xml
-│   └── tests/                       36 logtest cases + runner
+│   └── tests/                       42 logtest cases + runner
 ├── scripts/
 │   ├── server/                      agent install, web logs, Docker listener, CIS batches, sudo.log rotation
 │   ├── manager/                     rule deploy, watcher + systemd units, Discord and AWS secret helpers

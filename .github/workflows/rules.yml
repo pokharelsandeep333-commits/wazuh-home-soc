@@ -1,4 +1,4 @@
-# Loads the custom rules into a clean Wazuh 4.14.8 manager, validates the whole ruleset with
+# Loads the custom rules into a clean Wazuh 4.14.9 manager, validates the whole ruleset with
 # wazuh-analysisd -t, then replays wazuh/tests/cases.json through wazuh-logtest.
 # Also lints the shell scripts. No secrets are used.
 name: Rule tests
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 25
     env:
       M: wazuh-test
-      IMAGE: wazuh/wazuh-manager:4.14.8
+      IMAGE: wazuh/wazuh-manager:4.14.9
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
